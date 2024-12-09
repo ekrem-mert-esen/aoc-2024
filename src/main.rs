@@ -1,8 +1,9 @@
 use regex::Regex;
+use std::cmp;
 use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs::File;
-//use std::io::stdin;
+use std::io::stdin;
 use std::io::Read;
 fn read_file(path: &str) -> String {
     let mut file = File::open(path).expect("File not found");
@@ -381,10 +382,271 @@ fn _d6p2(file: String) -> i32 {
     }
     return sum;
 }
+
+fn _d7recurse(result: u64, operand: u64, operands: &[u64], day2: bool) -> bool {
+    //reducing target value by recursively subtracting/dividing by last value & checking if the
+    //leftover equals remaining operand at the end.
+    if let Some((i, next)) = operands.split_last() {
+        [
+            if result > *i {
+                println!("{} - {}", result, *i);
+                Some(result - *i)
+            } else {
+                None
+            },
+            if result % *i == 0 {
+                println!("{} / {}", result, *i);
+                Some(result / *i)
+            } else {
+                None
+            },
+            if day2 {
+                let j = 10u64.pow(i.ilog10() + 1);
+
+                if result % j == *i {
+                    Some(result / j)
+                } else {
+                    None
+                }
+            } else {
+                None
+            },
+        ]
+        .iter()
+        .flatten()
+        .any(|i| _d7recurse(*i, operand, next, day2))
+    } else {
+        println!("{} ?= {}", operand, result);
+        operand == result
+    }
+}
+
+fn _d7p1(file: String) -> u64 {
+    let lines: Vec<&str> = file.lines().collect();
+    let mut sum: u64 = 0;
+
+    for line in lines {
+        let result = line.split(':').nth(0).unwrap().parse::<u64>().unwrap();
+        let operands: Vec<u64> = line
+            .split(':')
+            .nth(1)
+            .unwrap()
+            .split_whitespace()
+            .map(|x| x.parse::<u64>().unwrap())
+            .collect();
+        println!("{}: {:?}", result, operands);
+        if _d7recurse(result, operands[0], &operands[1..], false) {
+            sum += result;
+        }
+    }
+
+    return sum;
+}
+
+fn _d7p2(file: String) -> u64 {
+    let lines: Vec<&str> = file.lines().collect();
+    let mut sum: u64 = 0;
+
+    for line in lines {
+        let result = line.split(':').nth(0).unwrap().parse::<u64>().unwrap();
+        let operands: Vec<u64> = line
+            .split(':')
+            .nth(1)
+            .unwrap()
+            .split_whitespace()
+            .map(|x| x.parse::<u64>().unwrap())
+            .collect();
+        println!("{}: {:?}", result, operands);
+        if _d7recurse(result, operands[0], &operands[1..], true) {
+            sum += result;
+        }
+    }
+
+    return sum;
+}
+
+fn _d8p1(file: String) -> i32 {
+    let charv: Vec<char> = file.chars().collect();
+    let upperbound = charv.len() as i32;
+    let linelen: i32 = file.lines().nth(0).unwrap().len() as i32 + 2;
+    let mut antinodes: HashSet<i32> = HashSet::new();
+    println!("Line len: {}",linelen);
+    let mut sum: i32 = 0;
+    let mut chars: HashSet<char> = HashSet::new();
+    for char in charv.iter() {
+        if *char != '.' && *char != '\n' && *char != '\r' {
+            chars.insert(*char);
+        }
+    }
+    for char in chars {
+        let mut locations: Vec<i32> = Vec::new();
+        charv.iter().enumerate().for_each(|(pos, c)| {
+            if *c == char {
+                locations.push(pos as i32);
+            }
+        });
+        // println!("For character '{}', locations are:", char); 
+        // println!("{:?}", locations);
+        // stdin().read(&mut [0]).unwrap();
+
+        for loc in &locations {
+            for pair in &locations {
+                let first =  cmp::min(loc,&pair);
+                let second = cmp::max(loc,&pair);
+                let dist = (loc-pair).abs();
+
+                if second % linelen > first % linelen 
+                // direction is NW-SE
+                    && (second + dist) % linelen > second % linelen
+                // antinode to SE is not OOB
+                    && second + dist >= 0
+                    && (second + dist) % linelen < 50
+                    && second + dist < upperbound
+                {
+                    antinodes.insert(second + dist);
+                } if second % linelen > first % linelen
+                // direction is NW-SE
+                    && (first - dist) % linelen <= first % linelen
+                // antinode to NW is not OOB
+                    && first - dist >= 0
+                    && (first - dist) % linelen < 50
+                    && first - dist < upperbound
+                {
+                    antinodes.insert(first - dist);
+                } if second % linelen < first % linelen
+                // direction is SW-NE
+                    && (second + dist) % linelen < second % linelen
+                // antinode to SW is not OOB
+                    && second + dist >= 0
+                    && (second + dist) % linelen < 50
+                    && second + dist < upperbound
+                {
+                    antinodes.insert(second + dist);
+                } if second % linelen < first % linelen
+                //direction is SW-NE
+                    && (first - dist) % linelen >= first % linelen
+                // antinode to NE is not OOB
+                    && first - dist >= 0
+                    && (first - dist) % linelen < 50
+                    && first - dist < upperbound
+                {
+                    antinodes.insert(first - dist);
+                }
+            }
+        }
+        // let mut state= charv.clone();
+        // for i in antinodes {
+        //     state[i as usize] = '@';
+        // }
+        // println!("For character '{}', antinodes are:", char); 
+        // println!("{}", state.iter().collect::<String>());
+        // stdin().read(&mut [0]).unwrap();
+    }
+    sum += antinodes.len() as i32;
+    return sum;
+
+}
+
+fn _d8p2(file: String) -> i32 {
+    let charv: Vec<char> = file.chars().collect();
+    let upperbound = charv.len() as i32;
+    let linelen: i32 = file.lines().nth(0).unwrap().len() as i32 + 2;
+    let mut antinodes: HashSet<i32> = HashSet::new();
+    println!("Line len: {}",linelen);
+    let mut sum: i32 = 0;
+    let mut chars: HashSet<char> = HashSet::new();
+    for char in charv.iter() {
+        if *char != '.' && *char != '\n' && *char != '\r' {
+            chars.insert(*char);
+        }
+    }
+    for char in chars {
+        let mut locations: Vec<i32> = Vec::new();
+        charv.iter().enumerate().for_each(|(pos, c)| {
+            if *c == char {
+                locations.push(pos as i32);
+            }
+        });
+        // println!("For character '{}', locations are:", char); 
+        // println!("{:?}", locations);
+        // stdin().read(&mut [0]).unwrap();
+
+        for loc in &locations {
+            antinodes.insert(*loc); //spent 2 hours for this.
+            for pair in &locations {
+                let first =  cmp::min(loc,&pair);
+                let second = cmp::max(loc,&pair);
+                let dist = (loc-pair).abs();
+                for i in 1..75 {
+
+                    if second % linelen > first % linelen
+                    // direction is NW-SE
+                        && (second + dist*i) % linelen > second % linelen
+                    // antinode to SE is not OOB
+                        && second + dist*i >= 0
+                        && (second + dist*i) % linelen < linelen-2
+                        && second + dist*i < upperbound
+                    {
+                       antinodes.insert(second + dist*i);
+                    } else {break};
+                }
+                for i in 1..50 {
+                    if second % linelen > first % linelen
+                    // direction is NW-SE
+                        && (first - dist*i) % linelen <= first % linelen
+                    // antinode to NW is not OOB
+                        && first - dist*i >= 0
+                        && (first - dist*i) % linelen < linelen-2
+                        && first - dist*i < upperbound
+                    {
+                        antinodes.insert(first - dist*i);
+                    }else {break};
+                }
+
+
+                for i in 1..50 {
+                    if second % linelen < first % linelen
+                    // direction is SW-NE
+                        && (second + dist*i) % linelen < second % linelen
+                    // antinode to SW is not OOB
+                        && second + dist*i >= 0
+                        && (second + dist*i) % linelen < linelen-2
+                        && second + dist*i < upperbound
+                    {
+                        antinodes.insert(second + dist*i);
+                    }else {break};
+                }
+                for i in 1..50 {
+                    if second % linelen < first % linelen
+                    //direction is SW-NE
+                        && (first - dist*i) % linelen >= first % linelen
+                    // antinode to NE is not OOB
+                        && first - dist*i >= 0
+                        && (first - dist*i) % linelen < linelen-2
+                        && first - dist*i < upperbound
+                    {
+                        antinodes.insert(first - dist*i);
+                    }else {break};
+                }
+
+            }
+        }
+        // let mut state= charv.clone();
+        // for i in &antinodes {
+        //     state[*i as usize] = '@';
+        // }
+        // println!("For character '{}', antinodes added:", char); 
+        // println!("{}", state.iter().collect::<String>());
+        // stdin().read(&mut [0]).unwrap();
+    }
+    sum += antinodes.len() as i32;
+    return sum;
+
+}
 fn main() {
     let args: Vec<String> = env::args().collect();
     let file_path = &args[1];
     let file = read_file(file_path);
-    let ret = _d6p2(file);
+    let ret = _d8p2(file);
     println!("{}", ret);
 }
